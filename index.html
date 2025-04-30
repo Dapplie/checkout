@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- 
+    CSP allows inline scripts; tighten this up in prod
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src * 'unsafe-inline' 'unsafe-eval' data:;">
+  <title>Hosted Checkout</title>
+</head>
+<body>
+  <div id="hco-embedded"></div>
+
+  <!-- load Mastercard's Checkout.js -->
+  <script
+    src="https://creditlibanais-netcommerce.gateway.mastercard.com/static/checkout/checkout.min.js"
+    data-error="errorCallback"
+    data-cancel="cancelCallback">
+  </script>
+
+  <script>
+    // read sessionId from the query string
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('sessionId');
+    if (!sessionId) {
+      document.body.innerHTML = '<p style="color:red">Missing sessionId</p>';
+      throw new Error('sessionId is required');
+    }
+
+    // JS callbacks (optional—returnUrl in your payload will still work)
+    function errorCallback(err) {
+      console.error('HCO error:', err);
+      window.location = 'myapp://payment-result?status=failure';
+    }
+    function cancelCallback() {
+      console.log('HCO canceled by user');
+      window.location = 'myapp://payment-result?status=cancel';
+    }
+    function completeCallback() {
+      console.log('HCO complete');
+      window.location = 'myapp://payment-result?status=success';
+    }
+
+    // configure & launch the full-page payment UI
+    Checkout.configure({ session: { id: sessionId } });
+    window.onload = () => Checkout.showPaymentPage();
+  </script>
+</body>
+</html>
