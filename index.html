@@ -3,9 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- 
-    CSP allows inline scripts; tighten this up in prod
-  -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src * 'unsafe-inline' 'unsafe-eval' data:;">
   <title>Hosted Checkout</title>
@@ -13,34 +10,41 @@
 <body>
   <div id="hco-embedded"></div>
 
-  <!-- load Mastercard's Checkout.js -->
+  <!-- note the added data-complete -->
   <script
     src="https://creditlibanais-netcommerce.gateway.mastercard.com/static/checkout/checkout.min.js"
     data-error="errorCallback"
-    data-cancel="cancelCallback">
+    data-cancel="cancelCallback"
+    data-complete="completeCallback">
   </script>
 
   <script>
-    // read sessionId from the query string
-    const params = new URLSearchParams(window.location.search);
+    const params  = new URLSearchParams(window.location.search);
     const sessionId = params.get('sessionId');
-    if (!sessionId) {
-      document.body.innerHTML = '<p style="color:red">Missing sessionId</p>';
-      throw new Error('sessionId is required');
+    const userId    = params.get('userId');
+    const orderId   = params.get('orderId');
+
+    if (!sessionId || !userId || !orderId) {
+      document.body.innerHTML = 
+        '<p style="color:red">Missing sessionId/userId/orderId</p>';
+      throw new Error('Missing parameters');
     }
 
-    // JS callbacks (optional—returnUrl in your payload will still work)
     function errorCallback(err) {
       console.error('HCO error:', err);
+      // fallback to telling the app it failed
       window.location = 'myapp://payment-result?status=failure';
     }
     function cancelCallback() {
-      console.log('HCO canceled by user');
+      console.log('HCO canceled');
       window.location = 'myapp://payment-result?status=cancel';
     }
     function completeCallback() {
-      console.log('HCO complete');
-      window.location = 'myapp://payment-result?status=success';
+      // ⚡️ Hit your backend first so it can verify & update the DB
+      window.location = 
+        `https://your-backend.com/api/checkout/return`
+        + `?userId=${encodeURIComponent(userId)}`
+        + `&orderId=${encodeURIComponent(orderId)}`;
     }
 
     // configure & launch the full-page payment UI
